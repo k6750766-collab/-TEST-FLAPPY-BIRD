@@ -1,0 +1,534 @@
+(<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Bird Telegram Mini App</title>
+    <!-- Официальный SDK Telegram -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #E6E6FA;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #E6E6FA;
+        }
+        /* Интерфейс */
+        .ui-top-left {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 4px 8px;
+            border-radius: 6px;
+            pointer-events: none;
+        }
+        .ui-top-right {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 4px 8px;
+            border-radius: 6px;
+            pointer-events: none;
+        }
+        .score-center {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 45px;
+            font-weight: 900;
+            color: #FFFFFF;
+            text-shadow: 3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .start-screen, .leaderboard-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #333;
+            background: rgba(230, 230, 250, 0.95);
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            z-index: 20;
+            width: 85%;
+            max-width: 320px;
+        }
+        .start-screen h1 {
+            margin: 0 0 10px 0;
+            font-size: 26px;
+            color: #444;
+        }
+        .start-screen p {
+            margin: 0 0 15px 0;
+            font-size: 15px;
+            color: #666;
+        }
+        .btn {
+            background-color: #BA55D3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        .btn-secondary {
+            background-color: #9370DB;
+        }
+        /* Таблица лидеров */
+        .leaderboard-screen {
+            display: none;
+        }
+        .leaderboard-screen h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #444;
+        }
+        .scores-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            text-align: left;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            padding: 5px 0;
+        }
+        .score-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            font-size: 15px;
+            border-bottom: 1px dashed #e0d0f0;
+        }
+        .score-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui-top-left" id="fpsDisplay">FPS: 0</div>
+    <div class="ui-top-right" id="recordDisplay">Record: 0</div>
+    <div class="score-center" id="scoreDisplay">0</div>
+
+    <!-- Стартовый экран -->
+    <div class="start-screen" id="startScreen">
+        <h1>Flappy Bird</h1>
+        <p>Тапни по экрану, чтобы играть</p>
+        <button class="btn" id="playBtn">Играть</button>
+        <button class="btn btn-secondary" id="openLeadersBtn">🏆 Рекорды</button>
+    </div>
+
+    <!-- Экран таблицы лидеров -->
+    <div class="leaderboard-screen" id="leaderboardScreen">
+        <h2>Топ Игроков</h2>
+        <div class="scores-list" id="scoresList"></div>
+        <button class="btn btn-secondary" id="closeLeadersBtn">Назад</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram?.WebApp;
+        let playerName = "Игрок";
+        if (tg) {
+            tg.expand();
+            tg.disableVerticalSwipes();
+            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                playerName = tg.initDataUnsafe.user.first_name || tg.initDataUnsafe.user.username || "Игрок";
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        });
+
+        let gameState = 'START'; // START, PLAYING, GAMEOVER, LEADERBOARD
+        let score = 0;
+        
+        // Работа с таблицей лидеров через localStorage
+        let leaderboard = JSON.parse(localStorage.getItem('flappy_leaderboard')) || [];
+        let highScore = leaderboard.length > 0 ? leaderboard[0].score : 0;
+        document.getElementById('recordDisplay').innerText = `Record: ${highScore}`;
+
+        function saveScoreToLeaderboard(currentScore) {
+            if (currentScore <= 0) return;
+            leaderboard.push({ name: playerName, score: currentScore });
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 10);
+            localStorage.setItem('flappy_leaderboard', JSON.stringify(leaderboard));
+            
+            highScore = leaderboard[0].score;
+            document.getElementById('recordDisplay').innerText = `Record: ${highScore}`;
+        }
+
+        function renderLeaderboard() {
+            const listEl = document.getElementById('scoresList');
+            listEl.innerHTML = '';
+            if (leaderboard.length === 0) {
+                listEl.innerHTML = '<div style="text-align: center; color: #777; padding: 10px;">Пока нет рекордов</div>';
+                return;
+            }
+            leaderboard.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'score-item';
+                div.innerHTML = `<span><b>${index + 1}.</b> ${item.name}</span> <span><b>${item.score}</b></span>`;
+                listEl.appendChild(div);
+            });
+        }
+
+        // Физика птички
+        const bird = {
+            x: width * 0.25,
+            y: height / 2,
+            radius: 15,
+            gravity: 0.38,
+            lift: -6.8,
+            velocity: 0,
+            rotation: 0
+        };
+
+        let pipes = [];
+        const pipeWidth = 65;
+        const pipeGap = 160;
+        const pipeSpeed = 2.6; // Базовая скорость для 60 FPS
+        
+        // Таймер для спавна труб по времени (независимо от герцовки экрана)
+        let pipeTimer = 0;
+        const pipeInterval = 1.6; // Спавн новой трубы каждые 1.6 секунды
+
+        // Переменные для расчета Delta Time и FPS
+        let lastTime = performance.now();
+        let frameCountFPS = 0;
+        let lastFPSUpdate = performance.now();
+        let fps = 0;
+
+        function resetGame() {
+            bird.y = height / 2;
+            bird.velocity = 0;
+            bird.rotation = 0;
+            pipes = [];
+            score = 0;
+            pipeTimer = 0;
+            document.getElementById('scoreDisplay').innerText = score;
+        }
+
+        function jump() {
+            if (gameState === 'PLAYING') {
+                bird.velocity = bird.lift;
+            }
+        }
+
+        // Управление
+        canvas.addEventListener('pointerdown', () => {
+            if (gameState === 'PLAYING') {
+                jump();
+            } else if (gameState === 'GAMEOVER') {
+                resetGame();
+                gameState = 'PLAYING';
+            } else if (gameState === 'START') {
+                gameState = 'PLAYING';
+                document.getElementById('startScreen').style.display = 'none';
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                if (gameState === 'PLAYING') jump();
+                else if (gameState === 'START') {
+                    gameState = 'PLAYING';
+                    document.getElementById('startScreen').style.display = 'none';
+                } else if (gameState === 'GAMEOVER') {
+                    resetGame();
+                    gameState = 'PLAYING';
+                }
+            }
+        });
+
+        document.getElementById('playBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            gameState = 'PLAYING';
+            document.getElementById('startScreen').style.display = 'none';
+        });
+
+        document.getElementById('openLeadersBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            renderLeaderboard();
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('leaderboardScreen').style.display = 'block';
+            gameState = 'LEADERBOARD';
+        });
+
+        document.getElementById('closeLeadersBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('leaderboardScreen').style.display = 'none';
+            if (score > 0 || gameState === 'GAMEOVER') {
+                document.getElementById('startScreen').style.display = 'block';
+                document.getElementById('startScreen').innerHTML = `
+                    <h1>Game Over</h1>
+                    <p>Счёт: ${score}</p>
+                    <button class="btn" id="restartBtn">Играть снова</button>
+                    <button class="btn btn-secondary" id="openLeadersBtn2">🏆 Рекорды</button>
+                `;
+                initGameOverButtons();
+                gameState = 'GAMEOVER';
+            } else {
+                document.getElementById('startScreen').style.display = 'block';
+                gameState = 'START';
+            }
+        });
+
+        function initGameOverButtons() {
+            document.getElementById('restartBtn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                resetGame();
+                document.getElementById('startScreen').style.display = 'none';
+                gameState = 'PLAYING';
+            });
+            document.getElementById('openLeadersBtn2').addEventListener('click', (e) => {
+                e.stopPropagation();
+                renderLeaderboard();
+                document.getElementById('startScreen').style.display = 'none';
+                document.getElementById('leaderboardScreen').style.display = 'block';
+                gameState = 'LEADERBOARD';
+            });
+        }
+
+        // Логика обновления игры с учетом Delta Time (timeScale)
+        function update(dt, timeScale) {
+            if (gameState === 'PLAYING') {
+                // Применяем гравитацию с учетом герцовки экрана
+                bird.velocity += bird.gravity * timeScale;
+                bird.y += bird.velocity * timeScale;
+
+                if (bird.velocity < 0) {
+                    bird.rotation = -0.4;
+                } else {
+                    bird.rotation = Math.min(Math.PI / 2, bird.rotation + 0.05 * timeScale);
+                }
+
+                const groundHeight = 60;
+                if (bird.y + bird.radius >= height - groundHeight) {
+                    bird.y = height - groundHeight - bird.radius;
+                    gameOver();
+                }
+                if (bird.y - bird.radius <= 0) {
+                    bird.y = bird.radius;
+                    bird.velocity = 0;
+                }
+
+                // Спавн труб по таймеру (в секундах), одинаково на 60Hz и 120Hz+
+                pipeTimer += dt;
+                if (pipeTimer >= pipeInterval) {
+                    pipeTimer = 0;
+                    const minHeight = 60;
+                    const maxHeight = height - groundHeight - pipeGap - 60;
+                    const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+                    
+                    pipes.push({
+                        x: width,
+                        topHeight: topHeight,
+                        bottomY: topHeight + pipeGap,
+                        passed: false
+                    });
+                }
+
+                // Движение труб с учетом времени
+                for (let i = pipes.length - 1; i >= 0; i--) {
+                    pipes[i].x -= pipeSpeed * timeScale;
+
+                    if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
+                        score++;
+                        pipes[i].passed = true;
+                        document.getElementById('scoreDisplay').innerText = score;
+                    }
+
+                    if (
+                        bird.x + bird.radius > pipes[i].x &&
+                        bird.x - bird.radius < pipes[i].x + pipeWidth &&
+                        (bird.y - bird.radius < pipes[i].topHeight || bird.y + bird.radius > pipes[i].bottomY)
+                    ) {
+                        gameOver();
+                    }
+
+                    if (pipes[i].x + pipeWidth < 0) {
+                        pipes.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            saveScoreToLeaderboard(score);
+            
+            const startScreen = document.getElementById('startScreen');
+            startScreen.innerHTML = `
+                <h1>Game Over</h1>
+                <p>Счёт: ${score}</p>
+                <button class="btn" id="restartBtn">Играть снова</button>
+                <button class="btn btn-secondary" id="openLeadersBtn2">🏆 Рекорды</button>
+            `;
+            startScreen.style.display = 'block';
+            initGameOverButtons();
+        }
+
+        function draw() {
+            // Небо (#E6E6FA)
+            ctx.fillStyle = '#E6E6FA';
+            ctx.fillRect(0, 0, width, height);
+
+            // Трубы (#FF00FF)
+            ctx.fillStyle = '#FF00FF';
+            for (let pipe of pipes) {
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
+
+                // Окантовка труб
+                ctx.fillStyle = '#D000D0';
+                ctx.fillRect(pipe.x - 3, pipe.topHeight - 15, pipeWidth + 6, 15);
+                ctx.fillRect(pipe.x - 3, pipe.bottomY, pipeWidth + 6, 15);
+                ctx.fillStyle = '#FF00FF';
+            }
+
+            // Земля
+            const groundHeight = 60;
+            ctx.fillStyle = '#DCD0FF';
+            ctx.fillRect(0, height - groundHeight, width, groundHeight);
+            ctx.fillStyle = '#BA55D3';
+            ctx.fillRect(0, height - groundHeight, width, 8);
+
+            // Птичка (#A9A9A9)
+            ctx.save();
+            ctx.translate(bird.x, bird.y);
+            ctx.rotate(bird.rotation);
+
+            ctx.fillStyle = '#A9A9A9';
+            ctx.strokeStyle = '#444444';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 18, 13, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Крыло
+            ctx.fillStyle = '#909090';
+            ctx.beginPath();
+            ctx.ellipse(-3, 4, 8, 5, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Хвостик
+            ctx.fillStyle = '#808080';
+            ctx.beginPath();
+            ctx.moveTo(-16, 2);
+            ctx.lineTo(-22, -2);
+            ctx.lineTo(-16, 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Глаз
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(6, -4, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(7.5, -4, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Клюв
+            ctx.fillStyle = '#FFA500';
+            ctx.beginPath();
+            ctx.moveTo(12, -4);
+            ctx.lineTo(21, 0);
+            ctx.lineTo(12, 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Главный игровой цикл с расчетом Delta Time
+        function loop(timestamp) {
+            // Считаем прошедшее время в секундах между кадрами
+            let dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            // Защита от резких скачков (если вкладка была свернута)
+            if (dt > 0.1) dt = 0.1;
+
+            // Коэффициент масштабирования (базовый расчет под 60 FPS: dt * 60)
+            // На 60 Гц timeScale ≈ 1.0, на 120 Гц timeScale ≈ 0.5
+            let timeScale = dt * 60;
+
+            // Подсчет FPS для интерфейса
+            frameCountFPS++;
+            if (timestamp - lastFPSUpdate >= 1000) {
+                fps = frameCountFPS;
+                frameCountFPS = 0;
+                lastFPSUpdate = timestamp;
+                document.getElementById('fpsDisplay').innerText = `FPS: ${fps}`;
+            }
+
+            update(dt, timeScale);
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
+)
