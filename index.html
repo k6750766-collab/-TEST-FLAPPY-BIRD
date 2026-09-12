@@ -1,4 +1,4 @@
-(<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -156,14 +156,14 @@
     <!-- Экран таблицы лидеров -->
     <div class="leaderboard-screen" id="leaderboardScreen">
         <h2>Топ Игроков</h2>
-        <div class="scores-list" id="scoresList"></div>
+        <div class="scores-list" id="scoresList">Загрузка...</div>
         <button class="btn btn-secondary" id="closeLeadersBtn">Назад</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // Инициализация Telegram Web App
+        // Инициализация Telegram Web App и определение имени игрока
         const tg = window.Telegram?.WebApp;
         let playerName = "Игрок";
         if (tg) {
@@ -191,20 +191,57 @@
 
         let gameState = 'START'; // START, PLAYING, GAMEOVER, LEADERBOARD
         let score = 0;
-        
-        // Работа с таблицей лидеров через localStorage
-        let leaderboard = JSON.parse(localStorage.getItem('flappy_leaderboard')) || [];
-        let highScore = leaderboard.length > 0 ? leaderboard[0].score : 0;
-        document.getElementById('recordDisplay').innerText = `Record: ${highScore}`;
+        let leaderboard = [];
+        let highScore = 0;
 
-        function saveScoreToLeaderboard(currentScore) {
+        // Загрузка таблицы лидеров из локальной памяти устройства
+        function loadLeaderboard() {
+            try {
+                const data = localStorage.getItem('flappy_local_leaderboard');
+                leaderboard = data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.error("Ошибка чтения локальной базы:", e);
+                leaderboard = [];
+            }
+            updateHighScore();
+        }
+
+        // Сохранение рекорда в локальную память устройства
+        function saveScoreToDevice(currentScore) {
             if (currentScore <= 0) return;
-            leaderboard.push({ name: playerName, score: currentScore });
-            leaderboard.sort((a, b) => b.score - a.score);
-            leaderboard = leaderboard.slice(0, 10);
-            localStorage.setItem('flappy_leaderboard', JSON.stringify(leaderboard));
+
+            let localList = [];
+            try {
+                const data = localStorage.getItem('flappy_local_leaderboard');
+                localList = data ? JSON.parse(data) : [];
+            } catch (e) {
+                localList = [];
+            }
+
+            // Добавляем текущий результат
+            localList.push({ name: playerName, score: currentScore, date: Date.now() });
             
-            highScore = leaderboard[0].score;
+            // Сортируем по убыванию очков
+            localList.sort((a, b) => b.score - a.score);
+            
+            // Оставляем только топ-20 лучших результатов на устройстве
+            localList = localList.slice(0, 20);
+
+            try {
+                localStorage.setItem('flappy_local_leaderboard', JSON.stringify(localList));
+            } catch (e) {
+                console.error("Ошибка сохранения в локальную базу:", e);
+            }
+
+            loadLeaderboard();
+        }
+
+        function updateHighScore() {
+            if (leaderboard.length > 0) {
+                highScore = leaderboard[0].score;
+            } else {
+                highScore = 0;
+            }
             document.getElementById('recordDisplay').innerText = `Record: ${highScore}`;
         }
 
@@ -223,6 +260,9 @@
             });
         }
 
+        // Загружаем рекорды при старте
+        loadLeaderboard();
+
         // Физика птички
         const bird = {
             x: width * 0.25,
@@ -237,13 +277,10 @@
         let pipes = [];
         const pipeWidth = 65;
         const pipeGap = 160;
-        const pipeSpeed = 2.6; // Базовая скорость для 60 FPS
-        
-        // Таймер для спавна труб по времени (независимо от герцовки экрана)
+        const pipeSpeed = 2.6;
         let pipeTimer = 0;
-        const pipeInterval = 1.6; // Спавн новой трубы каждые 1.6 секунды
+        const pipeInterval = 1.6;
 
-        // Переменные для расчета Delta Time и FPS
         let lastTime = performance.now();
         let frameCountFPS = 0;
         let lastFPSUpdate = performance.now();
@@ -265,7 +302,6 @@
             }
         }
 
-        // Управление
         canvas.addEventListener('pointerdown', () => {
             if (gameState === 'PLAYING') {
                 jump();
@@ -299,6 +335,7 @@
 
         document.getElementById('openLeadersBtn').addEventListener('click', (e) => {
             e.stopPropagation();
+            loadLeaderboard();
             renderLeaderboard();
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('leaderboardScreen').style.display = 'block';
@@ -333,6 +370,7 @@
             });
             document.getElementById('openLeadersBtn2').addEventListener('click', (e) => {
                 e.stopPropagation();
+                loadLeaderboard();
                 renderLeaderboard();
                 document.getElementById('startScreen').style.display = 'none';
                 document.getElementById('leaderboardScreen').style.display = 'block';
@@ -340,10 +378,8 @@
             });
         }
 
-        // Логика обновления игры с учетом Delta Time (timeScale)
         function update(dt, timeScale) {
             if (gameState === 'PLAYING') {
-                // Применяем гравитацию с учетом герцовки экрана
                 bird.velocity += bird.gravity * timeScale;
                 bird.y += bird.velocity * timeScale;
 
@@ -363,7 +399,6 @@
                     bird.velocity = 0;
                 }
 
-                // Спавн труб по таймеру (в секундах), одинаково на 60Hz и 120Hz+
                 pipeTimer += dt;
                 if (pipeTimer >= pipeInterval) {
                     pipeTimer = 0;
@@ -379,7 +414,6 @@
                     });
                 }
 
-                // Движение труб с учетом времени
                 for (let i = pipes.length - 1; i >= 0; i--) {
                     pipes[i].x -= pipeSpeed * timeScale;
 
@@ -406,7 +440,7 @@
 
         function gameOver() {
             gameState = 'GAMEOVER';
-            saveScoreToLeaderboard(score);
+            saveScoreToDevice(score);
             
             const startScreen = document.getElementById('startScreen');
             startScreen.innerHTML = `
@@ -420,31 +454,26 @@
         }
 
         function draw() {
-            // Небо (#E6E6FA)
             ctx.fillStyle = '#E6E6FA';
             ctx.fillRect(0, 0, width, height);
 
-            // Трубы (#FF00FF)
             ctx.fillStyle = '#FF00FF';
             for (let pipe of pipes) {
                 ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
                 ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
 
-                // Окантовка труб
                 ctx.fillStyle = '#D000D0';
                 ctx.fillRect(pipe.x - 3, pipe.topHeight - 15, pipeWidth + 6, 15);
                 ctx.fillRect(pipe.x - 3, pipe.bottomY, pipeWidth + 6, 15);
                 ctx.fillStyle = '#FF00FF';
             }
 
-            // Земля
             const groundHeight = 60;
             ctx.fillStyle = '#DCD0FF';
             ctx.fillRect(0, height - groundHeight, width, groundHeight);
             ctx.fillStyle = '#BA55D3';
             ctx.fillRect(0, height - groundHeight, width, 8);
 
-            // Птичка (#A9A9A9)
             ctx.save();
             ctx.translate(bird.x, bird.y);
             ctx.rotate(bird.rotation);
@@ -458,14 +487,12 @@
             ctx.fill();
             ctx.stroke();
 
-            // Крыло
             ctx.fillStyle = '#909090';
             ctx.beginPath();
             ctx.ellipse(-3, 4, 8, 5, 0.3, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            // Хвостик
             ctx.fillStyle = '#808080';
             ctx.beginPath();
             ctx.moveTo(-16, 2);
@@ -475,7 +502,6 @@
             ctx.fill();
             ctx.stroke();
 
-            // Глаз
             ctx.fillStyle = '#FFFFFF';
             ctx.beginPath();
             ctx.arc(6, -4, 5.5, 0, Math.PI * 2);
@@ -487,7 +513,6 @@
             ctx.arc(7.5, -4, 2, 0, Math.PI * 2);
             ctx.fill();
 
-            // Клюв
             ctx.fillStyle = '#FFA500';
             ctx.beginPath();
             ctx.moveTo(12, -4);
@@ -500,20 +525,12 @@
             ctx.restore();
         }
 
-        // Главный игровой цикл с расчетом Delta Time
         function loop(timestamp) {
-            // Считаем прошедшее время в секундах между кадрами
             let dt = (timestamp - lastTime) / 1000;
             lastTime = timestamp;
-
-            // Защита от резких скачков (если вкладка была свернута)
             if (dt > 0.1) dt = 0.1;
-
-            // Коэффициент масштабирования (базовый расчет под 60 FPS: dt * 60)
-            // На 60 Гц timeScale ≈ 1.0, на 120 Гц timeScale ≈ 0.5
             let timeScale = dt * 60;
 
-            // Подсчет FPS для интерфейса
             frameCountFPS++;
             if (timestamp - lastFPSUpdate >= 1000) {
                 fps = frameCountFPS;
@@ -531,4 +548,3 @@
     </script>
 </body>
 </html>
-)
