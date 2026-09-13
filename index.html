@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flappy Bird Telegram Mini App</title>
+    <title>Flappy Bird Space Edition</title>
+    <!-- Подключаем красивый современный шрифт Montserrat -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&display=swap" rel="stylesheet">
     <!-- Официальный SDK Telegram -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -17,15 +19,16 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #E6E6FA;
+            background-color: #0b0b1a;
             overflow: hidden;
-            font-family: Arial, sans-serif;
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #fff;
         }
         canvas {
             display: block;
             width: 100%;
             height: 100%;
-            background: #E6E6FA;
+            background: #0b0b1a;
         }
         /* Интерфейс */
         .ui-top-left {
@@ -33,31 +36,33 @@
             top: 15px;
             left: 15px;
             font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            background: rgba(255, 255, 255, 0.6);
-            padding: 4px 8px;
-            border-radius: 6px;
+            font-weight: 800;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 8px;
             pointer-events: none;
         }
         .ui-top-right {
             position: absolute;
             top: 15px;
             right: 15px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            background: rgba(255, 255, 255, 0.6);
-            padding: 4px 8px;
-            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 8px;
             pointer-events: none;
         }
         .score-center {
             position: absolute;
-            top: 40px;
+            top: 45px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 45px;
+            font-size: 48px;
             font-weight: 900;
             color: #FFFFFF;
             text-shadow: 3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000;
@@ -70,44 +75,49 @@
             left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            color: #333;
-            background: rgba(230, 230, 250, 0.95);
-            padding: 20px 30px;
-            border-radius: 12px;
-            border: 2px solid #333;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            color: #fff;
+            background: rgba(20, 20, 35, 0.95);
+            padding: 25px 20px;
+            border-radius: 16px;
+            border: 2px solid #555;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
             z-index: 20;
             width: 85%;
             max-width: 320px;
         }
         .start-screen h1 {
-            margin: 0 0 10px 0;
-            font-size: 26px;
-            color: #444;
+            margin: 0 0 8px 0;
+            font-size: 28px;
+            font-weight: 900;
+            color: #fff;
         }
         .start-screen p {
-            margin: 0 0 15px 0;
-            font-size: 15px;
-            color: #666;
+            margin: 0 0 20px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #aaa;
         }
         .btn {
-            background-color: #BA55D3;
+            background-color: #9370DB;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 20px;
             font-size: 16px;
-            font-weight: bold;
-            border-radius: 8px;
+            font-weight: 800;
+            border-radius: 10px;
             cursor: pointer;
-            margin-top: 8px;
+            margin-top: 10px;
             width: 100%;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 15px rgba(147, 112, 219, 0.4);
+            font-family: 'Montserrat', Arial, sans-serif;
+            transition: transform 0.1s ease;
         }
         .btn:active {
-            transform: scale(0.98);
+            transform: scale(0.96);
         }
         .btn-secondary {
-            background-color: #9370DB;
+            background-color: #483D8B;
+            box-shadow: 0 4px 15px rgba(72, 61, 139, 0.4);
         }
         /* Таблица лидеров */
         .leaderboard-screen {
@@ -115,24 +125,28 @@
         }
         .leaderboard-screen h2 {
             margin-top: 0;
-            margin-bottom: 10px;
-            color: #444;
+            margin-bottom: 12px;
+            font-size: 22px;
+            font-weight: 900;
+            color: #fff;
         }
         .scores-list {
-            max-height: 200px;
+            max-height: 220px;
             overflow-y: auto;
             margin-bottom: 15px;
             text-align: left;
-            border-top: 1px solid #ccc;
-            border-bottom: 1px solid #ccc;
+            border-top: 2px solid #444;
+            border-bottom: 2px solid #444;
             padding: 5px 0;
         }
         .score-item {
             display: flex;
             justify-content: space-between;
-            padding: 6px 10px;
-            font-size: 15px;
-            border-bottom: 1px dashed #e0d0f0;
+            padding: 8px 10px;
+            font-size: 14px;
+            font-weight: 600;
+            border-bottom: 1px dashed #333;
+            color: #ddd;
         }
         .score-item:last-child {
             border-bottom: none;
@@ -147,9 +161,9 @@
 
     <!-- Стартовый экран -->
     <div class="start-screen" id="startScreen">
-        <h1>Flappy Bird</h1>
-        <p>Тапни по экрану, чтобы играть</p>
-        <button class="btn" id="playBtn">Играть</button>
+        <h1>Space Bird</h1>
+        <p>Тапни по экрану, чтобы лететь</p>
+        <button class="btn" id="playBtn">Старт</button>
         <button class="btn btn-secondary" id="openLeadersBtn">🏆 Рекорды</button>
     </div>
 
@@ -163,6 +177,10 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        // --- ВСТАВЬТЕ СВОИ ДАННЫЕ ИЗ SUPABASE СЮДА ---
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Пример: 'https://xyz.supabase.co'
+        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Длинный ключ anon public
+
         // Инициализация Telegram Web App и определение имени игрока
         const tg = window.Telegram?.WebApp;
         let playerName = "Игрок";
@@ -189,51 +207,76 @@
             canvas.height = height;
         });
 
+        // Создаем звездное небо
+        let stars = [];
+        for (let i = 0; i < 70; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: Math.random() * 2.2 + 0.8,
+                alpha: Math.random() * 0.8 + 0.2,
+                speed: Math.random() * 0.5 + 0.2
+            });
+        }
+
         let gameState = 'START'; // START, PLAYING, GAMEOVER, LEADERBOARD
         let score = 0;
         let leaderboard = [];
         let highScore = 0;
 
-        // Загрузка таблицы лидеров из локальной памяти устройства
-        function loadLeaderboard() {
-            try {
-                const data = localStorage.getItem('flappy_local_leaderboard');
-                leaderboard = data ? JSON.parse(data) : [];
-            } catch (e) {
-                console.error("Ошибка чтения локальной базы:", e);
-                leaderboard = [];
+        // Загрузка таблицы лидеров из облачной базы данных Supabase
+        async function loadLeaderboard() {
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
+                updateHighScore();
+                return;
             }
-            updateHighScore();
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=*&order=score.desc&limit=10`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                if (response.ok) {
+                    leaderboard = await response.json();
+                    updateHighScore();
+                }
+            } catch (e) {
+                console.error("Ошибка загрузки из базы:", e);
+                leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
+                updateHighScore();
+            }
         }
 
-        // Сохранение рекорда в локальную память устройства
-        function saveScoreToDevice(currentScore) {
+        // Сохранение рекорда в облачную базу данных Supabase
+        async function saveScoreToDatabase(currentScore) {
             if (currentScore <= 0) return;
 
-            let localList = [];
-            try {
-                const data = localStorage.getItem('flappy_local_leaderboard');
-                localList = data ? JSON.parse(data) : [];
-            } catch (e) {
-                localList = [];
-            }
-
-            // Добавляем текущий результат
-            localList.push({ name: playerName, score: currentScore, date: Date.now() });
-            
-            // Сортируем по убыванию очков
+            // На случай сбоя интернета дублируем локально
+            let localList = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
+            localList.push({ name: playerName, score: currentScore });
             localList.sort((a, b) => b.score - a.score);
-            
-            // Оставляем только топ-20 лучших результатов на устройстве
-            localList = localList.slice(0, 20);
+            localStorage.setItem('flappy_local_leaderboard', JSON.stringify(localList));
+
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') return;
 
             try {
-                localStorage.setItem('flappy_local_leaderboard', JSON.stringify(localList));
+                await fetch(`${SUPABASE_URL}/rest/v1/leaderboard`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ name: playerName, score: currentScore })
+                });
+                loadLeaderboard();
             } catch (e) {
-                console.error("Ошибка сохранения в локальную базу:", e);
+                console.error("Ошибка сохранения в базу:", e);
             }
-
-            loadLeaderboard();
         }
 
         function updateHighScore() {
@@ -249,7 +292,7 @@
             const listEl = document.getElementById('scoresList');
             listEl.innerHTML = '';
             if (leaderboard.length === 0) {
-                listEl.innerHTML = '<div style="text-align: center; color: #777; padding: 10px;">Пока нет рекордов</div>';
+                listEl.innerHTML = '<div style="text-align: center; color: #888; padding: 10px;">Пока нет рекордов</div>';
                 return;
             }
             leaderboard.forEach((item, index) => {
@@ -335,8 +378,7 @@
 
         document.getElementById('openLeadersBtn').addEventListener('click', (e) => {
             e.stopPropagation();
-            loadLeaderboard();
-            renderLeaderboard();
+            loadLeaderboard().then(() => renderLeaderboard());
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('leaderboardScreen').style.display = 'block';
             gameState = 'LEADERBOARD';
@@ -370,8 +412,7 @@
             });
             document.getElementById('openLeadersBtn2').addEventListener('click', (e) => {
                 e.stopPropagation();
-                loadLeaderboard();
-                renderLeaderboard();
+                loadLeaderboard().then(() => renderLeaderboard());
                 document.getElementById('startScreen').style.display = 'none';
                 document.getElementById('leaderboardScreen').style.display = 'block';
                 gameState = 'LEADERBOARD';
@@ -379,6 +420,15 @@
         }
 
         function update(dt, timeScale) {
+            // Движение звезд в космосе
+            for (let star of stars) {
+                star.x -= star.speed * timeScale;
+                if (star.x < 0) {
+                    star.x = width;
+                    star.y = Math.random() * height;
+                }
+            }
+
             if (gameState === 'PLAYING') {
                 bird.velocity += bird.gravity * timeScale;
                 bird.y += bird.velocity * timeScale;
@@ -440,7 +490,7 @@
 
         function gameOver() {
             gameState = 'GAMEOVER';
-            saveScoreToDevice(score);
+            saveScoreToDatabase(score);
             
             const startScreen = document.getElementById('startScreen');
             startScreen.innerHTML = `
@@ -454,97 +504,49 @@
         }
 
         function draw() {
-            ctx.fillStyle = '#E6E6FA';
+            // Космический фон
+            ctx.fillStyle = '#0b0b1a';
             ctx.fillRect(0, 0, width, height);
 
-            ctx.fillStyle = '#FF00FF';
-            for (let pipe of pipes) {
-                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
-                ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
-
-                ctx.fillStyle = '#D000D0';
-                ctx.fillRect(pipe.x - 3, pipe.topHeight - 15, pipeWidth + 6, 15);
-                ctx.fillRect(pipe.x - 3, pipe.bottomY, pipeWidth + 6, 15);
-                ctx.fillStyle = '#FF00FF';
+            // Отрисовка звезд
+            for (let star of stars) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
             }
 
-            const groundHeight = 60;
-            ctx.fillStyle = '#DCD0FF';
-            ctx.fillRect(0, height - groundHeight, width, groundHeight);
-            ctx.fillStyle = '#BA55D3';
-            ctx.fillRect(0, height - groundHeight, width, 8);
-
-            ctx.save();
-            ctx.translate(bird.x, bird.y);
-            ctx.rotate(bird.rotation);
-
-            ctx.fillStyle = '#A9A9A9';
-            ctx.strokeStyle = '#444444';
+            // Отрисовка труб (светло-серые, ретро-стиль с контуром для космоса)
             ctx.lineWidth = 2;
+            ctx.strokeStyle = '#222233';
 
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 18, 13, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            for (let pipe of pipes) {
+                // Основная часть верхней трубы
+                ctx.fillStyle = '#D4D4D4';
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.topHeight);
 
-            ctx.fillStyle = '#909090';
-            ctx.beginPath();
-            ctx.ellipse(-3, 4, 8, 5, 0.3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+                // Основная часть нижней трубы
+                ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
+                ctx.strokeRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
 
-            ctx.fillStyle = '#808080';
-            ctx.beginPath();
-            ctx.moveTo(-16, 2);
-            ctx.lineTo(-22, -2);
-            ctx.lineTo(-16, 6);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
+                // Шляпка (рант) трубы
+                const lipHeight = 22;
+                const lipOverflow = 4;
 
-            ctx.fillStyle = '#FFFFFF';
-            ctx.beginPath();
-            ctx.arc(6, -4, 5.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+                // Верхняя шляпка
+                ctx.fillStyle = '#C0C0C0';
+                ctx.fillRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
+                ctx.strokeRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
 
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(7.5, -4, 2, 0, Math.PI * 2);
-            ctx.fill();
+                // Нижняя шляпка
+                ctx.fillRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
+                ctx.strokeRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
 
-            ctx.fillStyle = '#FFA500';
-            ctx.beginPath();
-            ctx.moveTo(12, -4);
-            ctx.lineTo(21, 0);
-            ctx.lineTo(12, 4);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.restore();
-        }
-
-        function loop(timestamp) {
-            let dt = (timestamp - lastTime) / 1000;
-            lastTime = timestamp;
-            if (dt > 0.1) dt = 0.1;
-            let timeScale = dt * 60;
-
-            frameCountFPS++;
-            if (timestamp - lastFPSUpdate >= 1000) {
-                fps = frameCountFPS;
-                frameCountFPS = 0;
-                lastFPSUpdate = timestamp;
-                document.getElementById('fpsDisplay').innerText = `FPS: ${fps}`;
+                // Блик для ретро-объема
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fillRect(pipe.x + 6, 0, 5, pipe.topHeight - lipHeight);
+                ctx.fillRect(pipe.x + 6, pipe.bottomY + lipHeight, 5, height - (pipe.bottomY + lipHeight));
             }
 
-            update(dt, timeScale);
-            draw();
-            requestAnimationFrame(loop);
-        }
-
-        requestAnimationFrame(loop);
-    </script>
-</body>
-</html>
+            // Космическая платформа (земля)
+            const groundHeight = 60;
+  
