@@ -106,7 +106,6 @@
             margin-top: 10px;
             width: 100%;
             box-shadow: 0 4px 15px rgba(147, 112, 219, 0.4);
-            font-family: 'Montserrat', Arial, sans-serif;
         }
         .btn:active {
             transform: scale(0.96);
@@ -170,391 +169,357 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // Если вы еще не подключили Supabase, оставьте 'YOUR_SUPABASE_URL' — 
-        // игра автоматически будет работать локально без ошибок.
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; 
-        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        window.addEventListener('DOMContentLoaded', () => {
+            const SUPABASE_URL = 'YOUR_SUPABASE_URL'; 
+            const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
-        const tg = window.Telegram?.WebApp;
-        let playerName = "Игрок";
-        if (tg) {
-            try {
-                tg.expand();
-                if (typeof tg.disableVerticalSwipes === 'function') {
-                    tg.disableVerticalSwipes();
-                }
-                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                    playerName = tg.initDataUnsafe.user.first_name || tg.initDataUnsafe.user.username || "Игрок";
-                }
-            } catch(e) {}
-        }
-
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        let width = window.innerWidth;
-        let height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-
-        window.addEventListener('resize', () => {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-        });
-
-        let stars = [];
-        for (let i = 0; i < 70; i++) {
-            stars.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                size: Math.random() * 2.2 + 0.8,
-                alpha: Math.random() * 0.8 + 0.2,
-                speed: Math.random() * 0.5 + 0.2
-            });
-        }
-
-        let gameState = 'START'; 
-        let score = 0;
-        let leaderboard = [];
-        let highScore = 0;
-
-        async function loadLeaderboard() {
-            if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) {
-                leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
-                updateHighScore();
-                return;
+            const tg = window.Telegram?.WebApp;
+            let playerName = "Игрок";
+            if (tg) {
+                try {
+                    tg.expand();
+                    if (typeof tg.disableVerticalSwipes === 'function') {
+                        tg.disableVerticalSwipes();
+                    }
+                    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                        playerName = tg.initDataUnsafe.user.first_name || tg.initDataUnsafe.user.username || "Игрок";
+                    }
+                } catch(e) {}
             }
 
-            try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=*&order=score.desc&limit=10`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+
+            let width = window.innerWidth;
+            let height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+
+            window.addEventListener('resize', () => {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+            });
+
+            let stars = [];
+            for (let i = 0; i < 70; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: Math.random() * 2.2 + 0.8,
+                    alpha: Math.random() * 0.8 + 0.2,
+                    speed: Math.random() * 0.5 + 0.2
                 });
-                if (response.ok) {
-                    leaderboard = await response.json();
+            }
+
+            let gameState = 'START'; 
+            let score = 0;
+            let leaderboard = [];
+            let highScore = 0;
+
+            async function loadLeaderboard() {
+                if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) {
+                    leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
                     updateHighScore();
-                } else {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=*&order=score.desc&limit=10`, {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        }
+                    });
+                    if (response.ok) {
+                        leaderboard = await response.json();
+                        updateHighScore();
+                    } else {
+                        leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
+                        updateHighScore();
+                    }
+                } catch (e) {
                     leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
                     updateHighScore();
                 }
-            } catch (e) {
-                leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
-                updateHighScore();
             }
-        }
 
-        async function saveScoreToDatabase(currentScore) {
-            if (currentScore <= 0) return;
+            async function saveScoreToDatabase(currentScore) {
+                if (currentScore <= 0) return;
 
-            let localList = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
-            localList.push({ name: playerName, score: currentScore });
-            localList.sort((a, b) => b.score - a.score);
-            localStorage.setItem('flappy_local_leaderboard', JSON.stringify(localList));
+                let localList = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
+                localList.push({ name: playerName, score: currentScore });
+                localList.sort((a, b) => b.score - a.score);
+                localStorage.setItem('flappy_local_leaderboard', JSON.stringify(localList));
 
-            if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) return;
+                if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) return;
 
-            try {
-                await fetch(`${SUPABASE_URL}/rest/v1/leaderboard`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify({ name: playerName, score: currentScore })
+                try {
+                    await fetch(`${SUPABASE_URL}/rest/v1/leaderboard`, {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({ name: playerName, score: currentScore })
+                    });
+                    loadLeaderboard();
+                } catch (e) {}
+            }
+
+            function updateHighScore() {
+                if (leaderboard.length > 0) {
+                    highScore = leaderboard[0].score;
+                } else {
+                    highScore = 0;
+                }
+                document.getElementById('recordDisplay').innerText = `Record: ${highScore}`;
+            }
+
+            function renderLeaderboard() {
+                const listEl = document.getElementById('scoresList');
+                listEl.innerHTML = '';
+                if (leaderboard.length === 0) {
+                    listEl.innerHTML = '<div style="text-align: center; color: #888; padding: 10px;">Пока нет рекордов</div>';
+                    return;
+                }
+                leaderboard.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'score-item';
+                    div.innerHTML = `<span><b>${index + 1}.</b> ${item.name}</span> <span><b>${item.score}</b></span>`;
+                    listEl.appendChild(div);
                 });
-                loadLeaderboard();
-            } catch (e) {}
-        }
-
-        function updateHighScore() {
-            if (leaderboard.length > 0) {
-                highScore = leaderboard[0].score;
-            } else {
-                highScore = 0;
             }
-            document.getElementById('recordDisplay').innerText = `Record: ${highScore}`;
-        }
 
-        function renderLeaderboard() {
-            const listEl = document.getElementById('scoresList');
-            listEl.innerHTML = '';
-            if (leaderboard.length === 0) {
-                listEl.innerHTML = '<div style="text-align: center; color: #888; padding: 10px;">Пока нет рекордов</div>';
-                return;
+            loadLeaderboard();
+
+            const bird = {
+                x: width * 0.25,
+                y: height / 2,
+                radius: 15,
+                gravity: 0.38,
+                lift: -6.8,
+                velocity: 0,
+                rotation: 0
+            };
+
+            let pipes = [];
+            const pipeWidth = 65;
+            const pipeGap = 160;
+            const pipeSpeed = 2.6;
+            let pipeTimer = 0;
+            const pipeInterval = 1.6;
+
+            let lastTime = performance.now();
+            let frameCountFPS = 0;
+            let lastFPSUpdate = performance.now();
+            let fps = 0;
+
+            function resetGame() {
+                bird.y = height / 2;
+                bird.velocity = 0;
+                bird.rotation = 0;
+                pipes = [];
+                score = 0;
+                pipeTimer = 0;
+                document.getElementById('scoreDisplay').innerText = score;
             }
-            leaderboard.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'score-item';
-                div.innerHTML = `<span><b>${index + 1}.</b> ${item.name}</span> <span><b>${item.score}</b></span>`;
-                listEl.appendChild(div);
-            });
-        }
 
-        loadLeaderboard();
-
-        const bird = {
-            x: width * 0.25,
-            y: height / 2,
-            radius: 15,
-            gravity: 0.38,
-            lift: -6.8,
-            velocity: 0,
-            rotation: 0
-        };
-
-        let pipes = [];
-        const pipeWidth = 65;
-        const pipeGap = 160;
-        const pipeSpeed = 2.6;
-        let pipeTimer = 0;
-        const pipeInterval = 1.6;
-
-        let lastTime = performance.now();
-        let frameCountFPS = 0;
-        let lastFPSUpdate = performance.now();
-        let fps = 0;
-
-        function resetGame() {
-            bird.y = height / 2;
-            bird.velocity = 0;
-            bird.rotation = 0;
-            pipes = [];
-            score = 0;
-            pipeTimer = 0;
-            document.getElementById('scoreDisplay').innerText = score;
-        }
-
-        function jump() {
-            if (gameState === 'PLAYING') {
-                bird.velocity = bird.lift;
+            function jump() {
+                if (gameState === 'PLAYING') {
+                    bird.velocity = bird.lift;
+                }
             }
-        }
 
-        canvas.addEventListener('pointerdown', () => {
-            if (gameState === 'PLAYING') {
-                jump();
-            } else if (gameState === 'GAMEOVER') {
-                resetGame();
-                gameState = 'PLAYING';
-            } else if (gameState === 'START') {
-                gameState = 'PLAYING';
-                document.getElementById('startScreen').style.display = 'none';
-            }
-        });
-
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                if (gameState === 'PLAYING') jump();
-                else if (gameState === 'START') {
-                    gameState = 'PLAYING';
-                    document.getElementById('startScreen').style.display = 'none';
+            canvas.addEventListener('pointerdown', () => {
+                if (gameState === 'PLAYING') {
+                    jump();
                 } else if (gameState === 'GAMEOVER') {
                     resetGame();
                     gameState = 'PLAYING';
+                } else if (gameState === 'START') {
+                    gameState = 'PLAYING';
+                    document.getElementById('startScreen').style.display = 'none';
                 }
-            }
-        });
-
-        document.getElementById('playBtn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            gameState = 'PLAYING';
-            document.getElementById('startScreen').style.display = 'none';
-        });
-
-        document.getElementById('openLeadersBtn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            loadLeaderboard().then(() => renderLeaderboard());
-            document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('leaderboardScreen').style.display = 'block';
-            gameState = 'LEADERBOARD';
-        });
-
-        document.getElementById('closeLeadersBtn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            document.getElementById('leaderboardScreen').style.display = 'none';
-            if (score > 0 || gameState === 'GAMEOVER') {
-                document.getElementById('startScreen').style.display = 'block';
-                document.getElementById('startScreen').innerHTML = `
-                    <h1>Game Over</h1>
-                    <p>Счёт: ${score}</p>
-                    <button class="btn" id="restartBtn">Играть снова</button>
-                    <button class="btn btn-secondary" id="openLeadersBtn2">🏆 Рекорды</button>
-                `;
-                initGameOverButtons();
-                gameState = 'GAMEOVER';
-            } else {
-                document.getElementById('startScreen').style.display = 'block';
-                gameState = 'START';
-            }
-        });
-
-        function initGameOverButtons() {
-            document.getElementById('restartBtn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                resetGame();
-                document.getElementById('startScreen').style.display = 'none';
-                gameState = 'PLAYING';
             });
-            document.getElementById('openLeadersBtn2').addEventListener('click', (e) => {
+
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    if (gameState === 'PLAYING') jump();
+                    else if (gameState === 'START') {
+                        gameState = 'PLAYING';
+                        document.getElementById('startScreen').style.display = 'none';
+                    } else if (gameState === 'GAMEOVER') {
+                        resetGame();
+                        gameState = 'PLAYING';
+                    }
+                }
+            });
+
+            document.getElementById('playBtn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                gameState = 'PLAYING';
+                document.getElementById('startScreen').style.display = 'none';
+            });
+
+            document.getElementById('openLeadersBtn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 loadLeaderboard().then(() => renderLeaderboard());
                 document.getElementById('startScreen').style.display = 'none';
                 document.getElementById('leaderboardScreen').style.display = 'block';
                 gameState = 'LEADERBOARD';
             });
-        }
 
-        function update(dt, timeScale) {
-            for (let star of stars) {
-                star.x -= star.speed * timeScale;
-                if (star.x < 0) {
-                    star.x = width;
-                    star.y = Math.random() * height;
+            document.getElementById('closeLeadersBtn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.getElementById('leaderboardScreen').style.display = 'none';
+                if (score > 0 || gameState === 'GAMEOVER') {
+                    document.getElementById('startScreen').style.display = 'block';
+                    document.getElementById('startScreen').innerHTML = `
+                        <h1>Game Over</h1>
+                        <p>Счёт: ${score}</p>
+                        <button class="btn" id="restartBtn">Играть снова</button>
+                        <button class="btn btn-secondary" id="openLeadersBtn2">🏆 Рекорды</button>
+                    `;
+                    initGameOverButtons();
+                    gameState = 'GAMEOVER';
+                } else {
+                    document.getElementById('startScreen').style.display = 'block';
+                    gameState = 'START';
                 }
+            });
+
+            function initGameOverButtons() {
+                document.getElementById('restartBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    resetGame();
+                    document.getElementById('startScreen').style.display = 'none';
+                    gameState = 'PLAYING';
+                });
+                document.getElementById('openLeadersBtn2').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    loadLeaderboard().then(() => renderLeaderboard());
+                    document.getElementById('startScreen').style.display = 'none';
+                    document.getElementById('leaderboardScreen').style.display = 'block';
+                    gameState = 'LEADERBOARD';
+                });
             }
 
-            if (gameState === 'PLAYING') {
-                bird.velocity += bird.gravity * timeScale;
-                bird.y += bird.velocity * timeScale;
-
-                if (bird.velocity < 0) {
-                    bird.rotation = -0.4;
-                } else {
-                    bird.rotation = Math.min(Math.PI / 2, bird.rotation + 0.05 * timeScale);
+            function update(dt, timeScale) {
+                for (let star of stars) {
+                    star.x -= star.speed * timeScale;
+                    if (star.x < 0) {
+                        star.x = width;
+                        star.y = Math.random() * height;
+                    }
                 }
 
-                const groundHeight = 60;
-                if (bird.y + bird.radius >= height - groundHeight) {
-                    bird.y = height - groundHeight - bird.radius;
-                    gameOver();
-                }
-                if (bird.y - bird.radius <= 0) {
-                    bird.y = bird.radius;
-                    bird.velocity = 0;
-                }
+                if (gameState === 'PLAYING') {
+                    bird.velocity += bird.gravity * timeScale;
+                    bird.y += bird.velocity * timeScale;
 
-                pipeTimer += dt;
-                if (pipeTimer >= pipeInterval) {
-                    pipeTimer = 0;
-                    const minHeight = 60;
-                    const maxHeight = height - groundHeight - pipeGap - 60;
-                    const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
-                    
-                    pipes.push({
-                        x: width,
-                        topHeight: topHeight,
-                        bottomY: topHeight + pipeGap,
-                        passed: false
-                    });
-                }
-
-                for (let i = pipes.length - 1; i >= 0; i--) {
-                    pipes[i].x -= pipeSpeed * timeScale;
-
-                    if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
-                        score++;
-                        pipes[i].passed = true;
-                        document.getElementById('scoreDisplay').innerText = score;
+                    if (bird.velocity < 0) {
+                        bird.rotation = -0.4;
+                    } else {
+                        bird.rotation = Math.min(Math.PI / 2, bird.rotation + 0.05 * timeScale);
                     }
 
-                    if (
-                        bird.x + bird.radius > pipes[i].x &&
-                        bird.x - bird.radius < pipes[i].x + pipeWidth &&
-                        (bird.y - bird.radius < pipes[i].topHeight || bird.y + bird.radius > pipes[i].bottomY)
-                    ) {
+                    const groundHeight = 60;
+                    if (bird.y + bird.radius >= height - groundHeight) {
+                        bird.y = height - groundHeight - bird.radius;
                         gameOver();
                     }
+                    if (bird.y - bird.radius <= 0) {
+                        bird.y = bird.radius;
+                        bird.velocity = 0;
+                    }
 
-                    if (pipes[i].x + pipeWidth < 0) {
-                        pipes.splice(i, 1);
+                    pipeTimer += dt;
+                    if (pipeTimer >= pipeInterval) {
+                        pipeTimer = 0;
+                        const minHeight = 60;
+                        const maxHeight = height - groundHeight - pipeGap - 60;
+                        const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+                        
+                        pipes.push({
+                            x: width,
+                            topHeight: topHeight,
+                            bottomY: topHeight + pipeGap,
+                            passed: false
+                        });
+                    }
+
+                    for (let i = pipes.length - 1; i >= 0; i--) {
+                        pipes[i].x -= pipeSpeed * timeScale;
+
+                        if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
+                            score++;
+                            pipes[i].passed = true;
+                            document.getElementById('scoreDisplay').innerText = score;
+                        }
+
+                        if (
+                            bird.x + bird.radius > pipes[i].x &&
+                            bird.x - bird.radius < pipes[i].x + pipeWidth &&
+                            (bird.y - bird.radius < pipes[i].topHeight || bird.y + bird.radius > pipes[i].bottomY)
+                        ) {
+                            gameOver();
+                        }
+
+                        if (pipes[i].x + pipeWidth < 0) {
+                            pipes.splice(i, 1);
+                        }
                     }
                 }
             }
-        }
 
-        function gameOver() {
-            gameState = 'GAMEOVER';
-            saveScoreToDatabase(score);
-            
-            const startScreen = document.getElementById('startScreen');
-            startScreen.innerHTML = `
-                <h1>Game Over</h1>
-                <p>Счёт: ${score}</p>
-                <button class="btn" id="restartBtn">Играть снова</button>
-                <button class="btn btn-secondary" id="openLeadersBtn2">🏆 Рекорды</button>
-            `;
-            startScreen.style.display = 'block';
-            initGameOverButtons();
-        }
-
-        function draw() {
-            ctx.fillStyle = '#0b0b1a';
-            ctx.fillRect(0, 0, width, height);
-
-            for (let star of stars) {
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
-                ctx.fillRect(star.x, star.y, star.size, star.size);
+            function gameOver() {
+                gameState = 'GAMEOVER';
+                saveScoreToDatabase(score);
+                
+                const startScreen = document.getElementById('startScreen');
+                startScreen.innerHTML = `
+                    <h1>Game Over</h1>
+                    <p>Счёт: ${score}</p>
+                    <button class="btn" id="restartBtn">Играть снова</button>
+                    <button class="btn btn-secondary" id="openLeadersBtn2">🏆 Рекорды</button>
+                `;
+                startScreen.style.display = 'block';
+                initGameOverButtons();
             }
 
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#222233';
+            function draw() {
+                ctx.fillStyle = '#0b0b1a';
+                ctx.fillRect(0, 0, width, height);
 
-            for (let pipe of pipes) {
-                ctx.fillStyle = '#D4D4D4';
-                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
-                ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                for (let star of stars) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                    ctx.fillRect(star.x, star.y, star.size, star.size);
+                }
 
-                ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
-                ctx.strokeRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#222233';
 
-                const lipHeight = 22;
-                const lipOverflow = 4;
+                for (let pipe of pipes) {
+                    ctx.fillStyle = '#D4D4D4';
+                    ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                    ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.topHeight);
 
-                ctx.fillStyle = '#C0C0C0';
-                ctx.fillRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
-                ctx.strokeRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
+                    ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
+                    ctx.strokeRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
 
-                ctx.fillRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
-                ctx.strokeRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
+                    const lipHeight = 22;
+                    const lipOverflow = 4;
 
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.fillRect(pipe.x + 6, 0, 5, pipe.topHeight - lipHeight);
-                ctx.fillRect(pipe.x + 6, pipe.bottomY + lipHeight, 5, height - (pipe.bottomY + lipHeight));
-            }
+                    ctx.fillStyle = '#C0C0C0';
+                    ctx.fillRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
+                    ctx.strokeRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
 
-            const groundHeight = 60;
-            ctx.fillStyle = '#161625';
-            ctx.fillRect(0, height - groundHeight, width, groundHeight);
-            ctx.fillStyle = '#9370DB';
-            ctx.fillRect(0, height - groundHeight, width, 6);
+                    ctx.fillRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
+                    ctx.strokeRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
 
-            ctx.save();
-            ctx.translate(bird.x, bird.y);
-            ctx.rotate(bird.rotation);
-
-            ctx.fillStyle = '#A9A9A9';
-            ctx.strokeStyle = '#222233';
-            ctx.lineWidth = 2;
-
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 18, 13, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = '#909090';
-            ctx.beginPath();
-            ctx.ellipse(-3, 4, 8, 5, 0.3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = '#808080';
-            ctx.beginPath();
-            ctx.moveTo(-16, 2);
-            ctx.lineTo(-22, -2);
-            ctx.lineTo(
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.fillRect(pipe.x + 6, 0, 5, pipe.
