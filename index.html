@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flappy Bird Space Edition</title>
-    <!-- Подключаем красивый современный шрифт Montserrat -->
+    <title>Space Bird</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&display=swap" rel="stylesheet">
-    <!-- Официальный SDK Telegram -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -30,7 +28,6 @@
             height: 100%;
             background: #0b0b1a;
         }
-        /* Интерфейс */
         .ui-top-left {
             position: absolute;
             top: 15px;
@@ -110,7 +107,6 @@
             width: 100%;
             box-shadow: 0 4px 15px rgba(147, 112, 219, 0.4);
             font-family: 'Montserrat', Arial, sans-serif;
-            transition: transform 0.1s ease;
         }
         .btn:active {
             transform: scale(0.96);
@@ -119,7 +115,6 @@
             background-color: #483D8B;
             box-shadow: 0 4px 15px rgba(72, 61, 139, 0.4);
         }
-        /* Таблица лидеров */
         .leaderboard-screen {
             display: none;
         }
@@ -159,7 +154,6 @@
     <div class="ui-top-right" id="recordDisplay">Record: 0</div>
     <div class="score-center" id="scoreDisplay">0</div>
 
-    <!-- Стартовый экран -->
     <div class="start-screen" id="startScreen">
         <h1>Space Bird</h1>
         <p>Тапни по экрану, чтобы лететь</p>
@@ -167,7 +161,6 @@
         <button class="btn btn-secondary" id="openLeadersBtn">🏆 Рекорды</button>
     </div>
 
-    <!-- Экран таблицы лидеров -->
     <div class="leaderboard-screen" id="leaderboardScreen">
         <h2>Топ Игроков</h2>
         <div class="scores-list" id="scoresList">Загрузка...</div>
@@ -177,19 +170,23 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // --- ВСТАВЬТЕ СВОИ ДАННЫЕ ИЗ SUPABASE СЮДА ---
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Пример: 'https://xyz.supabase.co'
-        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Длинный ключ anon public
+        // Если вы еще не подключили Supabase, оставьте 'YOUR_SUPABASE_URL' — 
+        // игра автоматически будет работать локально без ошибок.
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; 
+        const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
-        // Инициализация Telegram Web App и определение имени игрока
         const tg = window.Telegram?.WebApp;
         let playerName = "Игрок";
         if (tg) {
-            tg.expand();
-            tg.disableVerticalSwipes();
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                playerName = tg.initDataUnsafe.user.first_name || tg.initDataUnsafe.user.username || "Игрок";
-            }
+            try {
+                tg.expand();
+                if (typeof tg.disableVerticalSwipes === 'function') {
+                    tg.disableVerticalSwipes();
+                }
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    playerName = tg.initDataUnsafe.user.first_name || tg.initDataUnsafe.user.username || "Игрок";
+                }
+            } catch(e) {}
         }
 
         const canvas = document.getElementById('gameCanvas');
@@ -207,7 +204,6 @@
             canvas.height = height;
         });
 
-        // Создаем звездное небо
         let stars = [];
         for (let i = 0; i < 70; i++) {
             stars.push({
@@ -219,14 +215,13 @@
             });
         }
 
-        let gameState = 'START'; // START, PLAYING, GAMEOVER, LEADERBOARD
+        let gameState = 'START'; 
         let score = 0;
         let leaderboard = [];
         let highScore = 0;
 
-        // Загрузка таблицы лидеров из облачной базы данных Supabase
         async function loadLeaderboard() {
-            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) {
                 leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
                 updateHighScore();
                 return;
@@ -242,25 +237,25 @@
                 if (response.ok) {
                     leaderboard = await response.json();
                     updateHighScore();
+                } else {
+                    leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
+                    updateHighScore();
                 }
             } catch (e) {
-                console.error("Ошибка загрузки из базы:", e);
                 leaderboard = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
                 updateHighScore();
             }
         }
 
-        // Сохранение рекорда в облачную базу данных Supabase
         async function saveScoreToDatabase(currentScore) {
             if (currentScore <= 0) return;
 
-            // На случай сбоя интернета дублируем локально
             let localList = JSON.parse(localStorage.getItem('flappy_local_leaderboard')) || [];
             localList.push({ name: playerName, score: currentScore });
             localList.sort((a, b) => b.score - a.score);
             localStorage.setItem('flappy_local_leaderboard', JSON.stringify(localList));
 
-            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') return;
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || !SUPABASE_URL) return;
 
             try {
                 await fetch(`${SUPABASE_URL}/rest/v1/leaderboard`, {
@@ -274,9 +269,7 @@
                     body: JSON.stringify({ name: playerName, score: currentScore })
                 });
                 loadLeaderboard();
-            } catch (e) {
-                console.error("Ошибка сохранения в базу:", e);
-            }
+            } catch (e) {}
         }
 
         function updateHighScore() {
@@ -303,10 +296,8 @@
             });
         }
 
-        // Загружаем рекорды при старте
         loadLeaderboard();
 
-        // Физика птички
         const bird = {
             x: width * 0.25,
             y: height / 2,
@@ -420,7 +411,6 @@
         }
 
         function update(dt, timeScale) {
-            // Движение звезд в космосе
             for (let star of stars) {
                 star.x -= star.speed * timeScale;
                 if (star.x < 0) {
@@ -504,49 +494,67 @@
         }
 
         function draw() {
-            // Космический фон
             ctx.fillStyle = '#0b0b1a';
             ctx.fillRect(0, 0, width, height);
 
-            // Отрисовка звезд
             for (let star of stars) {
                 ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
                 ctx.fillRect(star.x, star.y, star.size, star.size);
             }
 
-            // Отрисовка труб (светло-серые, ретро-стиль с контуром для космоса)
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#222233';
 
             for (let pipe of pipes) {
-                // Основная часть верхней трубы
                 ctx.fillStyle = '#D4D4D4';
                 ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
                 ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.topHeight);
 
-                // Основная часть нижней трубы
                 ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
                 ctx.strokeRect(pipe.x, pipe.bottomY, pipeWidth, height - pipe.bottomY);
 
-                // Шляпка (рант) трубы
                 const lipHeight = 22;
                 const lipOverflow = 4;
 
-                // Верхняя шляпка
                 ctx.fillStyle = '#C0C0C0';
                 ctx.fillRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
                 ctx.strokeRect(pipe.x - lipOverflow, pipe.topHeight - lipHeight, pipeWidth + (lipOverflow * 2), lipHeight);
 
-                // Нижняя шляпка
                 ctx.fillRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
                 ctx.strokeRect(pipe.x - lipOverflow, pipe.bottomY, pipeWidth + (lipOverflow * 2), lipHeight);
 
-                // Блик для ретро-объема
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
                 ctx.fillRect(pipe.x + 6, 0, 5, pipe.topHeight - lipHeight);
                 ctx.fillRect(pipe.x + 6, pipe.bottomY + lipHeight, 5, height - (pipe.bottomY + lipHeight));
             }
 
-            // Космическая платформа (земля)
             const groundHeight = 60;
-  
+            ctx.fillStyle = '#161625';
+            ctx.fillRect(0, height - groundHeight, width, groundHeight);
+            ctx.fillStyle = '#9370DB';
+            ctx.fillRect(0, height - groundHeight, width, 6);
+
+            ctx.save();
+            ctx.translate(bird.x, bird.y);
+            ctx.rotate(bird.rotation);
+
+            ctx.fillStyle = '#A9A9A9';
+            ctx.strokeStyle = '#222233';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 18, 13, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#909090';
+            ctx.beginPath();
+            ctx.ellipse(-3, 4, 8, 5, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#808080';
+            ctx.beginPath();
+            ctx.moveTo(-16, 2);
+            ctx.lineTo(-22, -2);
+            ctx.lineTo(
